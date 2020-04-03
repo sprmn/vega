@@ -105,6 +105,7 @@ function buildAxisEncode(_, spec) {
   var encode = {enter: {}, update: {}};
 
   addEncoders(encode, {
+    orient:       _('orient'),
     offset:       _('offset') || 0,
     position:     value(spec.position, 0),
     titlePadding: _('titlePadding'),

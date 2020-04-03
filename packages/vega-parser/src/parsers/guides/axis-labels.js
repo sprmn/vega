@@ -4,7 +4,8 @@ import {extendOffset, lookup} from './guide-util';
 import {TextMark} from '../marks/marktypes';
 import {AxisLabelRole} from '../marks/roles';
 import {addEncoders, encoder} from '../encode/encode-util';
-import {deref} from '../../util';
+import {deref, isSignal} from '../../util';
+import { ifTopOrLeftAxisExpr, xAxisBooleanExpr, xAxisConditionalEncoding } from './axis-util';
 
 function flushExpr(scale, threshold, a, b, c) {
   return {
@@ -17,7 +18,7 @@ function flushExpr(scale, threshold, a, b, c) {
 export default function(spec, config, userEncode, dataRef, size, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
-      sign = (orient === Left || orient === Top) ? -1 : 1,
+      sign = (orient === Left || orient === Top) ? -1 : isSignal(orient) ? ifTopOrLeftAxisExpr(orient.signal, -1, 1) : 1,
       isXAxis = (orient === Top || orient === Bottom),
       scale = spec.scale,
       flush = deref(_('labelFlush')),
@@ -25,7 +26,7 @@ export default function(spec, config, userEncode, dataRef, size, band) {
       flushOn = flush === 0 || !!flush,
       labelAlign = _('labelAlign'),
       labelBaseline = _('labelBaseline'),
-      encode, enter, tickSize, tickPos, align, baseline, offset,
+      encode, enter, tickSize, tickPos, align, baseline, offset, offsetExpr,
       bound, overlap;
 
   tickSize = encoder(size);
@@ -40,30 +41,50 @@ export default function(spec, config, userEncode, dataRef, size, band) {
     offset: extendOffset(band.offset, _('labelOffset'))
   };
 
-  if (isXAxis) {
-    align = labelAlign || (flushOn
-      ? flushExpr(scale, flush, '"left"', '"right"', '"center"')
-      : 'center');
-    baseline = labelBaseline || (orient === Top ? 'bottom' : 'top');
-    offset = !labelAlign;
-  } else {
-    align = labelAlign || (orient === Right ? 'left' : 'right');
-    baseline = labelBaseline || (flushOn
-      ? flushExpr(scale, flush, '"top"', '"bottom"', '"middle"')
-      : 'middle');
-    offset = !labelBaseline;
-  }
+  if (!isSignal(orient)) {
+    if (isXAxis) {
+      align = labelAlign || (flushOn
+        ? flushExpr(scale, flush, '"left"', '"right"', '"center"')
+        : 'center');
+      baseline = labelBaseline || (orient === Top ? 'bottom' : 'top');
+      offset = !labelAlign;
+    } else {
+      align = labelAlign || (orient === Right ? 'left' : 'right');
+      baseline = labelBaseline || (flushOn
+        ? flushExpr(scale, flush, '"top"', '"bottom"', '"middle"')
+        : 'middle');
+      offset = !labelBaseline;
+    }
+  
+    offset = offset && flushOn && flushOffset
+      ? flushExpr(scale, flush, '-(' + flushOffset + ')', flushOffset, 0)
+      : null;
 
-  offset = offset && flushOn && flushOffset
-    ? flushExpr(scale, flush, '-(' + flushOffset + ')', flushOffset, 0)
-    : null;
-
-  encode = {
-    enter: enter = {
+    enter = {
       opacity: zero,
       x: isXAxis ? tickPos : tickSize,
       y: isXAxis ? tickSize : tickPos
-    },
+    }
+  } else {
+    align = labelAlign ||
+      { signal: `(${orient.signal}) === "${Top}" || (${orient.signal}) === "${Bottom}" ? (${flushOn ? flushExpr(scale, flush, '"left"', '"right"', '"center"').signal : "'center'"}) : (${orient.signal}) === "${Right}" ? "left" : "right"`};
+
+    baseline = labelBaseline || {
+      signal: `(${orient.signal}) === "${Top}" ? "bottom" : (${orient.signal}) === "${Bottom}" ? "top" : ${flushOn ? flushExpr(scale, flush, '"top"', '"bottom"', '"middle"') : "'middle'"}`
+    }
+
+    offsetExpr = flushExpr(scale, flush, '-(' + flushOffset + ')', flushOffset, 0).signal;
+    offset = `${xAxisBooleanExpr(orient.signal)} ? (${!labelAlign && flushOn && flushOffset ? offsetExpr : null}) : (${!labelBaseline && flushOn && flushOffset ? offsetExpr : null})`;
+    
+    enter = {
+      opacity: zero,
+      x: xAxisConditionalEncoding(orient.signal, tickPos, tickSize),
+      y: xAxisConditionalEncoding(orient.signal, tickPos, tickSize, false)
+    };
+  }
+
+  encode = {
+    enter: enter,
     update: {
       opacity: one,
       text: {field: Label},
@@ -77,8 +98,18 @@ export default function(spec, config, userEncode, dataRef, size, band) {
     }
   };
 
+  if (!isSignal(orient)) {
+    addEncoders(encode, {
+      [isXAxis ? 'dx' : 'dy'] : offset,
+    });
+  } else {
+    addEncoders(encode, {
+      dx: { signal: `${xAxisBooleanExpr(orient.signal)} ? (${offset}) : null` },
+      dy: { signal: `${xAxisBooleanExpr(orient.signal, false)} ? (${offset}) : null` }
+    });
+  }
+
   addEncoders(encode, {
-    [isXAxis ? 'dx' : 'dy']: offset,
     align:       align,
     baseline:    baseline,
     angle:       _('labelAngle'),
@@ -91,6 +122,8 @@ export default function(spec, config, userEncode, dataRef, size, band) {
     limit:       _('labelLimit'),
     lineHeight:  _('labelLineHeight')
   });
+    
+
 
   bound   = _('labelBound');
   overlap = _('labelOverlap');

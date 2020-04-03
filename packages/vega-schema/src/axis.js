@@ -46,8 +46,10 @@ const axisOrientEnum = [
   'right'
 ];
 
+const axisOrient = orSignal(enums(axisOrientEnum));
+
 const axis = object({
-  _orient_: enums(axisOrientEnum),
+  _orient_: axisOrient,
   _scale_: stringType,
   format: formatTypeOrSignal,
   formatType: orSignal(formatTypeType),
@@ -151,6 +153,7 @@ const axis = object({
 
 export default {
   refs: {
+    axisOrient,
     labelOverlap,
     tickBand,
     tickCount
