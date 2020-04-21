@@ -1,4 +1,4 @@
-import {ifTopOrLeftAxisExpr, xAxisConditionalEncoding, xAxisExpr} from './axis-util';
+import {ifTopOrLeftAxisExpr, xAxisBooleanExpr, xAxisConditionalEncoding} from './axis-util';
 import {Bottom, GuideTitleStyle, Left, Top, one, zero} from './constants';
 import guideMark from './guide-mark';
 import {alignExpr, anchorExpr, lookup} from './guide-util';
@@ -48,7 +48,7 @@ export default function(spec, config, userEncode, dataRef) {
   } else {
     update.x = xAxisConditionalEncoding(orient.signal, titlePos, null);
     update.y = xAxisConditionalEncoding(orient.signal, titlePos, null, false);
-    enter.angle = xAxisConditionalEncoding(orient.signal, zero, { signal: sign, mult: 90});
+    enter.angle = xAxisConditionalEncoding(orient.signal, zero, { signal: `(${sign.signal}) * 90` });
     enter.baseline = xAxisConditionalEncoding(orient.signal, {signal: `(${orient.signal}) === "${Top}" ? "bottom" : "top"`}, { value: 'bottom' });
   }
 
@@ -84,13 +84,15 @@ export default function(spec, config, userEncode, dataRef) {
         signal: undefined,
         ..._('titleX')
       };
-
-      encode.enter.auto = [
-        {
-          test: xAxisExpr(orient.signal, false),
-          value: !has('x', userEncode) ? true : undefined
-        }
-      ];
+    } else {
+      if (!has('x', userEncode)) {
+        encode.enter.auto = [
+          {
+            test: xAxisBooleanExpr(orient.signal, false),
+            value: true
+          }
+        ];
+      }
     }
 
     if (_('titleY') != null) {
@@ -99,13 +101,20 @@ export default function(spec, config, userEncode, dataRef) {
         signal: undefined,
         ..._('titleY')
       };
-
-      encode.enter.auto = [
-        {
-          test: xAxisExpr(orient.signal, false),
-          value: !has('x', userEncode) ? true : undefined
+    } else {
+      if (!has('y', userEncode)) {
+        
+        if (!encode.enter.auto) {
+          encode.enter.auto = [];
         }
-      ];
+
+        encode.enter.auto.push(
+          {
+            test: xAxisBooleanExpr(orient.signal),
+            value: true
+          }
+        );
+      }
     }
   }
 
