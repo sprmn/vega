@@ -1,9 +1,9 @@
 import { stringValue } from "vega-util";
 import { Top, Bottom, Left } from "./constants";
 
-export function xAxisExpr(signalExpr, ifXAxis, otherwise) {
-  var ifXAxisStr = stringValue(ifXAxis);
-  var otherwiseStr = stringValue(otherwise);
+export function xAxisExpr(signalExpr, ifXAxis, otherwise, ifXAxisIsString = true, otherwiseIsString = true) {
+  var ifXAxisStr = ifXAxisIsString ? stringValue(ifXAxis) : ifXAxis;
+  var otherwiseStr = otherwiseIsString ? stringValue(otherwise) : otherwise;
   return {
     signal: `${xAxisBooleanExpr(signalExpr)} ? (${ifXAxisStr}) : (${otherwiseStr})`
   }

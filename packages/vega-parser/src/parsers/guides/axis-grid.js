@@ -66,8 +66,8 @@ export default function(spec, config, userEncode, dataRef, band) {
     update.y = enter.y = xAxisConditionalEncoding(orient.signal, tickPos, vscale ? { scale: vscale, range: 0, mult: sign, offset: offset} : { value: 0, offset: offset}, false);
     exit.x = xAxisConditionalEncoding(orient.signal, tickPos, null);
     exit.y = xAxisConditionalEncoding(orient.signal, tickPos, null, false);
-    update.y2 = enter.y2 = xAxisConditionalEncoding(orient.signal, vscale ? {scale: vscale, range: 1, mult: sign, offset: offset} : {signal: xAxisExpr(orient.signal, 'height', 'width').signal, mult: sign, offset: offset}, null);
-    update.x2 = enter.x2 = xAxisConditionalEncoding(orient.signal, vscale ? {scale: vscale, range: 1, mult: sign, offset: offset} : {signal: xAxisExpr(orient.signal, 'height', 'width').signal, mult: sign, offset: offset}, null, false);
+    update.y2 = enter.y2 = xAxisConditionalEncoding(orient.signal, vscale ? {scale: vscale, range: 1, mult: sign, offset: offset} : {signal: xAxisExpr(orient.signal, 'height', 'width', false, false).signal, mult: sign, offset: offset}, null);
+    update.x2 = enter.x2 = xAxisConditionalEncoding(orient.signal, vscale ? {scale: vscale, range: 1, mult: sign, offset: offset} : {signal: xAxisExpr(orient.signal, 'height', 'width', false, false).signal, mult: sign, offset: offset}, null, false);
   }
   
 
@@ -81,20 +81,39 @@ export default function(spec, config, userEncode, dataRef, band) {
 }
 
 function offsetValue(offset, sign)  {
-  if (sign === 1) {
-    // do nothing!
-  } else if (!isObject(offset)) {
-    offset = sign * (offset || 0);
+  var entry;
+  if (!isSignal(sign)) {
+    if (sign === 1) {
+      // do nothing!
+    } else if (!isObject(offset)) {
+      offset = sign * (offset || 0);
+    } else {
+        entry = offset = extend({}, offset);
+  
+        while (entry.mult != null) {
+          if (!isObject(entry.mult)) {
+            entry.mult *= sign;
+            return offset;
+          } else {
+            entry = entry.mult = extend({}, entry.mult);
+          }
+        }
+    
+        entry.mult = sign;
+    }
+    return offset;
   } else {
-      var entry = offset = extend({}, offset);
-
+    if (!isObject(offset)) {
+      return {
+        signal: `(${sign.signal}) === 1 ? 0 : (${sign.signal}) * (${offset || 0})`
+      }
+    } else {
+      entry = offset = extend({}, offset);
+  
       while (entry.mult != null) {
         if (!isObject(entry.mult)) {
-          if (isSignal(sign)) {
-            entry.mult = `${entry.mult} * (${sign})`;
-          } else {
-            entry.mult *= sign;
-          }
+          // no offset if sign === 1
+          entry.mult = { signal: `(${sign.signal}) === 1 ? 0 : -${entry.mult}` };
           return offset;
         } else {
           entry = entry.mult = extend({}, entry.mult);
@@ -102,7 +121,6 @@ function offsetValue(offset, sign)  {
       }
   
       entry.mult = sign;
+    }
   }
-
-  return offset;
 }

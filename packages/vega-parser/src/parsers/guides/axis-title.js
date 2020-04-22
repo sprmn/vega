@@ -48,8 +48,8 @@ export default function(spec, config, userEncode, dataRef) {
   } else {
     update.x = xAxisConditionalEncoding(orient.signal, titlePos, null);
     update.y = xAxisConditionalEncoding(orient.signal, titlePos, null, false);
-    enter.angle = xAxisConditionalEncoding(orient.signal, zero, { signal: `(${sign.signal}) * 90` });
-    enter.baseline = xAxisConditionalEncoding(orient.signal, {signal: `(${orient.signal}) === "${Top}" ? "bottom" : "top"`}, { value: 'bottom' });
+    enter.angle = update.angle = xAxisConditionalEncoding(orient.signal, zero, { signal: `warn((${sign.signal}) * 90)` });
+    enter.baseline = update.baseline = xAxisConditionalEncoding(orient.signal, {signal: `(${orient.signal}) === "${Top}" ? "bottom" : "top"`}, { value: 'bottom' });
   }
 
   addEncoders(encode, {
