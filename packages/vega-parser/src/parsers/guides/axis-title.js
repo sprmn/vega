@@ -79,9 +79,9 @@ export default function(spec, config, userEncode, dataRef) {
 
   if (isSignal(orient)) {
     if (_('titleX') != null) {
+      delete encode.update['x'][0].signal;
       encode.update['x'][0] = {
         ...encode.update['x'][0],
-        signal: undefined,
         ..._('titleX')
       };
     } else {
@@ -91,9 +91,9 @@ export default function(spec, config, userEncode, dataRef) {
     }
 
     if (_('titleY') != null) {
+      delete encode.update['y'][0].signal;
       encode.update['y'][0] = {
         ...encode.update['y'][0],
-        signal: undefined,
         ..._('titleY')
       };
     } else {
