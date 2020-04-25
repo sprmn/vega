@@ -1,4 +1,4 @@
-import {ifTopOrLeftAxisExpr, xAxisBooleanExpr, xAxisConditionalEncoding} from './axis-util';
+import {ifTopOrLeftAxisSignalRef, xyAxisConditionalEncoding} from './axis-util';
 import {Bottom, GuideTitleStyle, Left, Top, one, zero} from './constants';
 import guideMark from './guide-mark';
 import {alignExpr, anchorExpr, lookup} from './guide-util';
@@ -12,7 +12,7 @@ import { isSignal } from '../../util';
 export default function(spec, config, userEncode, dataRef) {
   var _ = lookup(spec, config),
       orient = spec.orient,
-      sign = isSignal(orient) ? ifTopOrLeftAxisExpr(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
+      sign = isSignal(orient) ? ifTopOrLeftAxisSignalRef(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
       horizontal = (orient === Top || orient === Bottom),
       encode, enter, update, titlePos;
 
@@ -35,7 +35,22 @@ export default function(spec, config, userEncode, dataRef) {
     signal: `lerp(range("${spec.scale}"), ${anchorExpr(0, 1, 0.5)})`
   };
 
-  if (!isSignal(orient)) {
+  if (isSignal(orient)) {
+    update.x = xyAxisConditionalEncoding('x', orient.signal, titlePos, null);
+    update.y = xyAxisConditionalEncoding('y', orient.signal, titlePos, null);
+    enter.angle = update.angle = 
+      xyAxisConditionalEncoding('x',
+        orient.signal,
+        zero,
+        { signal: `(${sign.signal}) * 90` }
+      );
+    enter.baseline = update.baseline =
+      xyAxisConditionalEncoding('x', 
+        orient.signal,
+        {signal: `(${orient.signal}) === "${Top}" ? "bottom" : "top"`},
+        { value: 'bottom' }
+      );
+  } else {
     if (horizontal) {
       update.x = titlePos;
       enter.angle = {value: 0};
@@ -45,11 +60,6 @@ export default function(spec, config, userEncode, dataRef) {
       enter.angle = {value: sign * 90};
       enter.baseline = {value: 'bottom'};
     }
-  } else {
-    update.x = xAxisConditionalEncoding(orient.signal, titlePos, null);
-    update.y = xAxisConditionalEncoding(orient.signal, titlePos, null, false);
-    enter.angle = update.angle = xAxisConditionalEncoding(orient.signal, zero, { signal: `warn((${sign.signal}) * 90)` });
-    enter.baseline = update.baseline = xAxisConditionalEncoding(orient.signal, {signal: `(${orient.signal}) === "${Top}" ? "bottom" : "top"`}, { value: 'bottom' });
   }
 
   addEncoders(encode, {
@@ -67,17 +77,7 @@ export default function(spec, config, userEncode, dataRef) {
     align:       _('titleAlign')
   });
 
-  if (!isSignal(orient)) {
-    if (!addEncode(encode, 'x', _('titleX'), 'update')) {
-      !horizontal && !has('x', userEncode)
-      && (encode.enter.auto = {value: true});
-    }
-  
-    if (!addEncode(encode, 'y', _('titleY'), 'update')) {
-      horizontal && !has('y', userEncode)
-      && (encode.enter.auto = {value: true});
-    }
-  } else {
+  if (isSignal(orient)) {
     if (_('titleX') != null) {
       encode.update['x'][0] = {
         ...encode.update['x'][0],
@@ -86,12 +86,7 @@ export default function(spec, config, userEncode, dataRef) {
       };
     } else {
       if (!has('x', userEncode)) {
-        encode.enter.auto = [
-          {
-            test: xAxisBooleanExpr(orient.signal, false),
-            value: true
-          }
-        ];
+        encode.enter.auto = xyAxisConditionalEncoding('y', orient.signal, { value: true }, null);
       }
     }
 
@@ -103,18 +98,22 @@ export default function(spec, config, userEncode, dataRef) {
       };
     } else {
       if (!has('y', userEncode)) {
-        
         if (!encode.enter.auto) {
           encode.enter.auto = [];
         }
 
-        encode.enter.auto.push(
-          {
-            test: xAxisBooleanExpr(orient.signal),
-            value: true
-          }
-        );
+        encode.enter.auto.push(xyAxisConditionalEncoding('x', orient.signal, { value: true }, null)[0]);
       }
+    }
+  } else {   
+    if (!addEncode(encode, 'x', _('titleX'), 'update')) {
+      !horizontal && !has('x', userEncode)
+      && (encode.enter.auto = {value: true});
+    }
+  
+    if (!addEncode(encode, 'y', _('titleY'), 'update')) {
+      horizontal && !has('y', userEncode)
+      && (encode.enter.auto = {value: true});
     }
   }
 

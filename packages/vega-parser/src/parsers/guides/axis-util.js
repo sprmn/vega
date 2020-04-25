@@ -1,42 +1,43 @@
-import { stringValue } from "vega-util";
-import { Top, Bottom, Left } from "./constants";
+import { stringValue } from 'vega-util';
+import { Bottom, Left, Top } from './constants';
+import { isSignal } from '../../util';
 
-export function xAxisExpr(signalExpr, ifXAxis, otherwise, ifXAxisIsString = true, otherwiseIsString = true) {
-  var ifXAxisStr = ifXAxisIsString ? stringValue(ifXAxis) : ifXAxis;
-  var otherwiseStr = otherwiseIsString ? stringValue(otherwise) : otherwise;
+export function xyAxisSignalRef(xy, axisOrientExpr, yes, no) {
+  var yesStr = isSignal(yes) ? yes.signal : stringValue(yes);
+  var noStr = isSignal(no) ? no.signal : stringValue(no);
   return {
-    signal: `${xAxisBooleanExpr(signalExpr)} ? (${ifXAxisStr}) : (${otherwiseStr})`
-  }
+    signal: `${xyAxisBooleanExpr(xy, axisOrientExpr)} ? (${yesStr}) : (${noStr})`
+  };
 }
   
-export function xAxisBooleanExpr(signalExpr, isXAxis = true) {
-  return `${isXAxis ? '' : '!'}((${signalExpr}) === "${Top}" || (${signalExpr}) === "${Bottom}")`
+export function xyAxisBooleanExpr(xy, axisOrientExpr) {
+  return `${xy === 'x' ? '' : '!'}((${axisOrientExpr}) === "${Top}" || (${axisOrientExpr}) === "${Bottom}")`;
 }
 
-export function axisOrientExpr(signalExpr, top, bottom, left, right) {
-  var topStr = stringValue(top);
-  var bottomStr = stringValue(bottom);
-  var leftStr = stringValue(left);
-  var rightStr = stringValue(right);
+export function axisOrientSignalRef(axisOrientExpr, top, bottom, left, right) {
+  var topStr = isSignal(top) ? top.signal : stringValue(top);
+  var bottomStr = isSignal(bottom) ? bottom.signal : stringValue(bottom);
+  var leftStr = isSignal(left) ? left.signal : stringValue(left);
+  var rightStr = isSignal(right) ? right.signal : stringValue(right);
 
   return {
-    signal: `(${signalExpr}) === "${Top}" ? (${topStr}) : (${signalExpr}) === "${Bottom}" ? (${bottomStr}) : (${signalExpr}) === "${Left}" ? (${leftStr}) : (${rightStr})`
-  }
+    signal: `(${axisOrientExpr}) === "${Top}" ? (${topStr}) : (${axisOrientExpr}) === "${Bottom}" ? (${bottomStr}) : (${axisOrientExpr}) === "${Left}" ? (${leftStr}) : (${rightStr})`
+  };
 }
 
-export function ifTopOrLeftAxisExpr(signalExpr, ifTopOrLeft, otherwise) {
-  var ifTopOrLeftStr = stringValue(ifTopOrLeft);
-  var otherwiseStr = stringValue(otherwise);
+export function ifTopOrLeftAxisSignalRef(axisOrientExpr, ifTopOrLeft, otherwise) {
+  var ifTopOrLeftStr = isSignal(ifTopOrLeft) ? ifTopOrLeft.signal : stringValue(ifTopOrLeft);
+  var otherwiseStr = isSignal(otherwise) ? otherwise.signal : stringValue(otherwise);
   return {
-    signal: `(${signalExpr}) === "${Top}" || (${signalExpr}) === "${Left}" ? (${ifTopOrLeftStr}) : (${otherwiseStr})`
-  }
+    signal: `(${axisOrientExpr}) === "${Top}" || (${axisOrientExpr}) === "${Left}" ? (${ifTopOrLeftStr}) : (${otherwiseStr})`
+  };
 }
  
-export function xAxisConditionalEncoding(signalExpr, ifXAxis, otherwise, isXAxis = true) {
+export function xyAxisConditionalEncoding(xy, axisOrientExpr, yes, no) {
   return [
     {
-      test: xAxisBooleanExpr(signalExpr, isXAxis),
-      ...ifXAxis
+      test: xyAxisBooleanExpr(xy, axisOrientExpr),
+      ...yes
     }
-  ].concat(otherwise ? [otherwise] : []);
+  ].concat(no || []);
 }

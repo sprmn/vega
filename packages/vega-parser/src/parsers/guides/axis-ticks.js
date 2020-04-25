@@ -5,12 +5,12 @@ import {RuleMark} from '../marks/marktypes';
 import {AxisTickRole} from '../marks/roles';
 import {addEncoders, encoder} from '../encode/encode-util';
 import { isSignal } from '../../util';
-import { ifTopOrLeftAxisExpr, xAxisConditionalEncoding } from './axis-util';
+import { ifTopOrLeftAxisSignalRef, xyAxisConditionalEncoding } from './axis-util';
 
 export default function(spec, config, userEncode, dataRef, size, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
-      sign = isSignal(orient) ? ifTopOrLeftAxisExpr(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
+      sign = isSignal(orient) ? ifTopOrLeftAxisSignalRef(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
       encode, enter, exit, update, tickSize, tickPos;
 
   encode = {
@@ -40,7 +40,14 @@ export default function(spec, config, userEncode, dataRef, size, band) {
     round:  _('tickRound')
   };
 
-  if (!isSignal(orient)) {
+  if (isSignal(orient)) {
+    update.y = enter.y = xyAxisConditionalEncoding('x', orient.signal, zero, tickPos);
+    update.x = enter.x = xyAxisConditionalEncoding('y', orient.signal, zero, tickPos);
+    update.y2 = enter.y2 = xyAxisConditionalEncoding('x', orient.signal, tickSize, null);
+    update.x2 = enter.x2 = xyAxisConditionalEncoding('y', orient.signal, tickSize, null);
+    exit.x = xyAxisConditionalEncoding('x', orient.signal, tickPos, null);
+    exit.y = xyAxisConditionalEncoding('y', orient.signal, tickPos, null);
+  } else {
     if (orient === Top || orient === Bottom) {
       update.y = enter.y = zero;
       update.y2 = enter.y2 = tickSize;
@@ -50,13 +57,6 @@ export default function(spec, config, userEncode, dataRef, size, band) {
       update.x2 = enter.x2 = tickSize;
       update.y = enter.y = exit.y = tickPos;
     }
-  } else {
-    update.y = enter.y = xAxisConditionalEncoding(orient.signal, zero, tickPos);
-    update.x = enter.x = xAxisConditionalEncoding(orient.signal, zero, tickPos, false);
-    update.y2 = enter.y2 = xAxisConditionalEncoding(orient.signal, tickSize, null);
-    update.x2 = enter.x2 = xAxisConditionalEncoding(orient.signal, tickSize, null, false);
-    exit.x = xAxisConditionalEncoding(orient.signal, tickPos, null);
-    exit.y = xAxisConditionalEncoding(orient.signal, tickPos, null, false);
   }
 
   return guideMark({

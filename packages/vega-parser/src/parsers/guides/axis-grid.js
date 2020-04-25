@@ -6,15 +6,19 @@ import {AxisGridRole} from '../marks/roles';
 import {addEncoders} from '../encode/encode-util';
 import {extend, isObject} from 'vega-util';
 import { isSignal } from '../../util';
-import { ifTopOrLeftAxisExpr, xAxisExpr, xAxisConditionalEncoding } from './axis-util';
+import { ifTopOrLeftAxisSignalRef, xyAxisConditionalEncoding, xyAxisSignalRef } from './axis-util';
 
 export default function(spec, config, userEncode, dataRef, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
       vscale = spec.gridScale,
-      sign = isSignal(orient) ? ifTopOrLeftAxisExpr(orient.signal, 1, -1) : (orient === Left || orient === Top) ? 1 : -1,
+      sign = isSignal(orient)
+        ? ifTopOrLeftAxisSignalRef(orient.signal, 1, -1)
+        : (orient === Left || orient === Top) ? 1 : -1,
       offset = offsetValue(spec.offset, sign),
-      encode, enter, exit, update, tickPos, u, v, v2, s;
+      encode, enter, exit, update,
+      tickPos, gridLineStart, gridLineEnd,
+      u, v, v2, s, isXAxis, xy;
 
   encode = {
     enter: enter = {opacity: zero},
@@ -40,34 +44,44 @@ export default function(spec, config, userEncode, dataRef, band) {
     round:  _('tickRound')
   };
 
-  if (!isSignal(orient)) {
-    if (orient === Top || orient === Bottom) {
+  isXAxis = orient === Top || orient === Bottom;
+  s = isSignal(orient)
+    ? xyAxisSignalRef('x', orient.signal, { signal: 'height' }, { signal: 'width' }).signal
+    : isXAxis ? 'height' : 'width';
+  
+  gridLineStart = vscale
+    ? {scale: vscale, range: 0, mult: sign, offset: offset}
+    : {value: 0, offset: offset};
+
+  gridLineEnd = vscale
+    ? {scale: vscale, range: 1, mult: sign, offset: offset}
+    : {signal: s, mult: sign, offset: offset};
+
+  if (isSignal(orient)) {
+    for (xy of ['x', 'y']) {
+      update[xy] = enter[xy] = xyAxisConditionalEncoding(xy, orient.signal, tickPos, gridLineStart);
+      
+      exit[xy] = xyAxisConditionalEncoding(xy, orient.signal, tickPos, null);
+      
+      update[xy + '2'] = enter[xy + '2'] = xyAxisConditionalEncoding(xy === 'x' ? 'y' : 'x',
+        orient.signal,
+        gridLineEnd,
+        null
+      );
+    }
+  } else {
+    if (isXAxis) {
       u = 'x';
       v = 'y';
-      s = 'height';
     } else {
       u = 'y';
       v = 'x';
-      s = 'width';
     }
     v2 = v + '2';
   
     update[u] = enter[u] = exit[u] = tickPos;
-  
-    if (vscale) {
-      update[v] = enter[v] = {scale: vscale, range: 0, mult: sign, offset: offset};
-      update[v2] = enter[v2] = {scale: vscale, range: 1, mult: sign, offset: offset};
-    } else {
-      update[v] = enter[v] = {value: 0, offset: offset};
-      update[v2] = enter[v2] = {signal: s, mult: sign, offset: offset};
-    }
-  } else {
-    update.x = enter.x = xAxisConditionalEncoding(orient.signal, tickPos, vscale ? { scale: vscale, range: 0, mult: sign, offset: offset} : { value: 0, offset: offset});
-    update.y = enter.y = xAxisConditionalEncoding(orient.signal, tickPos, vscale ? { scale: vscale, range: 0, mult: sign, offset: offset} : { value: 0, offset: offset}, false);
-    exit.x = xAxisConditionalEncoding(orient.signal, tickPos, null);
-    exit.y = xAxisConditionalEncoding(orient.signal, tickPos, null, false);
-    update.y2 = enter.y2 = xAxisConditionalEncoding(orient.signal, vscale ? {scale: vscale, range: 1, mult: sign, offset: offset} : {signal: xAxisExpr(orient.signal, 'height', 'width', false, false).signal, mult: sign, offset: offset}, null);
-    update.x2 = enter.x2 = xAxisConditionalEncoding(orient.signal, vscale ? {scale: vscale, range: 1, mult: sign, offset: offset} : {signal: xAxisExpr(orient.signal, 'height', 'width', false, false).signal, mult: sign, offset: offset}, null, false);
+    update[v] = enter[v] = gridLineStart;
+    update[v2] = enter[v2] = gridLineEnd;
   }
   
 
@@ -82,45 +96,34 @@ export default function(spec, config, userEncode, dataRef, band) {
 
 function offsetValue(offset, sign)  {
   var entry;
+
   if (!isSignal(sign)) {
     if (sign === 1) {
       // do nothing!
     } else if (!isObject(offset)) {
-      offset = sign * (offset || 0);
-    } else {
-        entry = offset = extend({}, offset);
-  
-        while (entry.mult != null) {
-          if (!isObject(entry.mult)) {
-            entry.mult *= sign;
-            return offset;
-          } else {
-            entry = entry.mult = extend({}, entry.mult);
-          }
-        }
-    
-        entry.mult = sign;
-    }
-    return offset;
-  } else {
-    if (!isObject(offset)) {
-      return {
+      offset = isSignal(sign) ? {
         signal: `(${sign.signal}) === 1 ? 0 : (${sign.signal}) * (${offset || 0})`
-      }
+      } : offset = sign * (offset || 0);
     } else {
       entry = offset = extend({}, offset);
-  
+      
       while (entry.mult != null) {
         if (!isObject(entry.mult)) {
-          // no offset if sign === 1
-          entry.mult = { signal: `(${sign.signal}) === 1 ? 0 : -${entry.mult}` };
+          if (isSignal(sign)) {
+            // no offset if sign === 1
+            entry.mult = { signal: `(${sign.signal}) === 1 ? 0 : -${entry.mult}` };
+          } else {
+            entry.mult *= sign;
+          }
           return offset;
         } else {
           entry = entry.mult = extend({}, entry.mult);
         }
       }
-  
+
       entry.mult = sign;
     }
   }
+
+  return offset;
 }

@@ -5,7 +5,7 @@ import {TextMark} from '../marks/marktypes';
 import {AxisLabelRole} from '../marks/roles';
 import {addEncoders, encoder} from '../encode/encode-util';
 import {deref, isSignal} from '../../util';
-import { ifTopOrLeftAxisExpr, xAxisBooleanExpr, xAxisConditionalEncoding } from './axis-util';
+import { ifTopOrLeftAxisSignalRef, xyAxisBooleanExpr, xyAxisConditionalEncoding } from './axis-util';
 
 function flushExpr(scale, threshold, a, b, c) {
   return {
@@ -18,7 +18,7 @@ function flushExpr(scale, threshold, a, b, c) {
 export default function(spec, config, userEncode, dataRef, size, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
-      sign = (orient === Left || orient === Top) ? -1 : isSignal(orient) ? ifTopOrLeftAxisExpr(orient.signal, -1, 1) : 1,
+      sign = (orient === Left || orient === Top) ? -1 : isSignal(orient) ? ifTopOrLeftAxisSignalRef(orient.signal, -1, 1) : 1,
       isXAxis = (orient === Top || orient === Bottom),
       scale = spec.scale,
       flush = deref(_('labelFlush')),
@@ -41,7 +41,38 @@ export default function(spec, config, userEncode, dataRef, size, band) {
     offset: extendOffset(band.offset, _('labelOffset'))
   };
 
-  if (!isSignal(orient)) {
+  if (isSignal(orient)) {
+    align = labelAlign ||
+      {
+        signal: `(${orient.signal}) === "${Top}" || (${orient.signal}) === "${Bottom}"`
+          + ' ? '
+          + `(${flushOn ? flushExpr(scale, flush, '"left"', '"right"', '"center"').signal : "'center'"})`
+          + ' : '
+          + `(${orient.signal}) === "${Right}" ? "left" : "right"`
+      };
+
+    baseline = labelBaseline ||
+      {
+        signal: `(${orient.signal}) === "${Top}" ? "bottom"`
+          + ' : '
+          + `(${orient.signal}) === "${Bottom}" ? "top"`
+          + ' : '
+          + `${flushOn ? flushExpr(scale, flush, '"top"', '"bottom"', '"middle"') : "'middle'"}`
+      };
+
+    offsetExpr = flushExpr(scale, flush, '-(' + flushOffset + ')', flushOffset, 0).signal;
+    offset = `${xyAxisBooleanExpr('x', orient.signal)}`
+      + ' ? ' +
+      + `(${!labelAlign && flushOn && flushOffset ? offsetExpr : null})`
+      + ' : '
+      + `(${!labelBaseline && flushOn && flushOffset ? offsetExpr : null})`;
+    
+    enter = {
+      opacity: zero,
+      x: xyAxisConditionalEncoding('x', orient.signal, tickPos, tickSize),
+      y: xyAxisConditionalEncoding('y', orient.signal, tickPos, tickSize)
+    };
+  } else {
     if (isXAxis) {
       align = labelAlign || (flushOn
         ? flushExpr(scale, flush, '"left"', '"right"', '"center"')
@@ -64,22 +95,6 @@ export default function(spec, config, userEncode, dataRef, size, band) {
       opacity: zero,
       x: isXAxis ? tickPos : tickSize,
       y: isXAxis ? tickSize : tickPos
-    }
-  } else {
-    align = labelAlign ||
-      { signal: `(${orient.signal}) === "${Top}" || (${orient.signal}) === "${Bottom}" ? (${flushOn ? flushExpr(scale, flush, '"left"', '"right"', '"center"').signal : "'center'"}) : (${orient.signal}) === "${Right}" ? "left" : "right"`};
-
-    baseline = labelBaseline || {
-      signal: `(${orient.signal}) === "${Top}" ? "bottom" : (${orient.signal}) === "${Bottom}" ? "top" : ${flushOn ? flushExpr(scale, flush, '"top"', '"bottom"', '"middle"') : "'middle'"}`
-    }
-
-    offsetExpr = flushExpr(scale, flush, '-(' + flushOffset + ')', flushOffset, 0).signal;
-    offset = `${xAxisBooleanExpr(orient.signal)} ? (${!labelAlign && flushOn && flushOffset ? offsetExpr : null}) : (${!labelBaseline && flushOn && flushOffset ? offsetExpr : null})`;
-    
-    enter = {
-      opacity: zero,
-      x: xAxisConditionalEncoding(orient.signal, tickPos, tickSize),
-      y: xAxisConditionalEncoding(orient.signal, tickPos, tickSize, false)
     };
   }
 
@@ -104,8 +119,8 @@ export default function(spec, config, userEncode, dataRef, size, band) {
     });
   } else {
     addEncoders(encode, {
-      dx: { signal: `${xAxisBooleanExpr(orient.signal)} ? (${offset}) : null` },
-      dy: { signal: `${xAxisBooleanExpr(orient.signal, false)} ? (${offset}) : null` }
+      dx: { signal: `${xyAxisBooleanExpr('x', orient.signal)} ? (${offset}) : null` },
+      dy: { signal: `${xyAxisBooleanExpr('y', orient.signal)} ? (${offset}) : null` }
     });
   }
 

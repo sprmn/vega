@@ -1,4 +1,4 @@
-import { xAxisConditionalEncoding } from './axis-util';
+import { xyAxisConditionalEncoding } from './axis-util';
 import {Bottom, Top, one, zero} from './constants';
 import guideMark from './guide-mark';
 import {lookup} from './guide-util';
@@ -27,7 +27,14 @@ export default function(spec, config, userEncode, dataRef) {
     strokeOpacity:    _('domainOpacity')
   });
 
-  if (!isSignal(spec.orient)) {
+  if (isSignal(spec.orient)) {
+    enter.y = xyAxisConditionalEncoding('x', orient.signal, zero, position(spec, 0));
+    enter.x = xyAxisConditionalEncoding('y', orient.signal, zero, position(spec, 0));
+    update.x = xyAxisConditionalEncoding('x', orient.signal, position(spec, 0), null);
+    update.y = xyAxisConditionalEncoding('y', orient.signal, position(spec, 0), null);
+    update.x2 = enter.x2 = xyAxisConditionalEncoding('x', orient.signal, position(spec, 1), null);
+    update.y2 = enter.y2 = xyAxisConditionalEncoding('y', orient.signal, position(spec, 1), null);
+  } else {
     if (orient === Top || orient === Bottom) {
       u = 'x';
       v = 'y';
@@ -40,13 +47,6 @@ export default function(spec, config, userEncode, dataRef) {
     enter[v] = zero;
     update[u] = enter[u] = position(spec, 0);
     update[u2] = enter[u2] = position(spec, 1);
-  } else {
-    enter.y = xAxisConditionalEncoding(orient.signal, zero, position(spec, 0));
-    enter.x = xAxisConditionalEncoding(orient.signal, zero, position(spec, 0), false);
-    update.x = xAxisConditionalEncoding(orient.signal, position(spec, 0), null);
-    update.y = xAxisConditionalEncoding(orient.signal, position(spec, 0), null, false);
-    update.x2 = enter.x2 = xAxisConditionalEncoding(orient.signal, position(spec, 1), null);
-    update.y2 = enter.y2 = xAxisConditionalEncoding(orient.signal, position(spec, 1), null, false);
   }
 
   return guideMark({
