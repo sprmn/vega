@@ -1,38 +1,61 @@
-import { stringValue } from 'vega-util';
+import { isArray, stringValue } from 'vega-util';
 import { Bottom, Left, Top } from './constants';
-import { isSignal } from '../../util';
+import { isSignal} from '../../util';
+
+export function resolveAxisOrientConditional(orient, axisOrientSignalRefOrValue, yes, no) {
+  var orientArr = isArray(orient) ? orient : [orient];
+
+  if (isSignal(axisOrientSignalRefOrValue)) {
+    return axisOrientSignalRef(orientArr, axisOrientSignalRefOrValue.signal, yes, no);
+  } else {
+    return orientArr.includes(axisOrientSignalRefOrValue) ? yes : no;
+  }
+}
+
+export function resolveXYAxisOrientConditional(xy, axisOrientSignalRefOrValue, yes, no) {
+  if (isSignal(axisOrientSignalRefOrValue)) {
+    return xyAxisSignalRef(xy, axisOrientSignalRefOrValue.signal, yes, no);
+  } else {
+    return axisOrientSignalRefOrValue === Top || axisOrientSignalRefOrValue === Bottom ? yes : no;
+  }
+}
 
 export function xyAxisSignalRef(xy, axisOrientExpr, yes, no) {
-  var yesStr = isSignal(yes) ? yes.signal : stringValue(cleanValue(yes));
-  var noStr = isSignal(no) ? no.signal : stringValue(cleanValue(no));
+  var yesExpr = exprFromValue(yes);
+  var noExpr = exprFromValue(no);
   return {
-    signal: `${xyAxisBooleanExpr(xy, axisOrientExpr)} ? (${yesStr}) : (${noStr})`
+    signal: `${xyAxisBooleanExpr(xy, axisOrientExpr)} ? (${yesExpr}) : (${noExpr})`
   };
 }
   
 export function xyAxisBooleanExpr(xy, axisOrientExpr) {
-  return `${xy === 'x' ? '' : '!'}((${axisOrientExpr}) === "${Top}" || (${axisOrientExpr}) === "${Bottom}")`;
+  return `${xy === 'x' ? '' : '!'}(indexof(["${Top}", "${Bottom}"], ${axisOrientExpr}) >= 0)`;
 }
 
-export function axisOrientSignalRef(axisOrientExpr, top, bottom, left, right) {
-  var topStr = isSignal(top) ? top.signal : stringValue(cleanValue(top));
-  var bottomStr = isSignal(bottom) ? bottom.signal : stringValue(cleanValue(bottom));
-  var leftStr = isSignal(left) ? left.signal : stringValue(cleanValue(left));
-  var rightStr = isSignal(right) ? right.signal : stringValue(cleanValue(right));
+export function axisOrientSignalRef(orient, axisOrientExpr, yes, no) {
+  var orientArrExpr = stringValue(isArray(orient) ? orient : [orient]);
+
+  var yesExpr = exprFromValue(yes);
+  var noExpr = exprFromValue(no);
 
   return {
-    signal: `(${axisOrientExpr}) === "${Top}" ? (${topStr}) : (${axisOrientExpr}) === "${Bottom}" ? (${bottomStr}) : (${axisOrientExpr}) === "${Left}" ? (${leftStr}) : (${rightStr})`
+    signal: `indexof(${orientArrExpr}, ${axisOrientExpr}) >= 0 ? (${yesExpr}) : (${noExpr})`
   };
 }
 
-export function ifTopOrLeftAxisSignalRef(axisOrientExpr, ifTopOrLeft, otherwise) {
-  var ifTopOrLeftStr = isSignal(ifTopOrLeft) ? ifTopOrLeft.signal : stringValue(cleanValue(ifTopOrLeft));
-  var otherwiseStr = isSignal(otherwise) ? otherwise.signal : stringValue(cleanValue(otherwise));
+export function allAxisOrientSignalRef(axisOrientExpr, top, bottom, left, right) {
+  var topExpr = exprFromValue(top);
+  var bottomExpr = exprFromValue(bottom);
+  var leftExpr = exprFromValue(left);
+  var rightExpr = exprFromValue(right);
+
   return {
-    signal: `(${axisOrientExpr}) === "${Top}" || (${axisOrientExpr}) === "${Left}" ? (${ifTopOrLeftStr}) : (${otherwiseStr})`
+    signal: `(${axisOrientExpr}) === "${Top}" ? (${topExpr}) : `
+      + `(${axisOrientExpr}) === "${Bottom}" ? (${bottomExpr}) : `
+      + `(${axisOrientExpr}) === "${Left}" ? (${leftExpr}) : (${rightExpr})`
   };
 }
- 
+
 export function xyAxisConditionalEncoding(xy, axisOrientExpr, yes, no) {
   return [
     {
@@ -42,6 +65,7 @@ export function xyAxisConditionalEncoding(xy, axisOrientExpr, yes, no) {
   ].concat(no || []);
 }
 
-function cleanValue(val) {
-  return val === undefined ? null : val;
+
+export function exprFromValue(val) {
+  return isSignal(val) ? val.signal : stringValue(val === undefined ? null : val);
 }

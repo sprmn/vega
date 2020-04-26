@@ -5,12 +5,12 @@ import {RuleMark} from '../marks/marktypes';
 import {AxisTickRole} from '../marks/roles';
 import {addEncoders, encoder} from '../encode/encode-util';
 import { isSignal } from '../../util';
-import { ifTopOrLeftAxisSignalRef, xyAxisConditionalEncoding } from './axis-util';
+import { resolveAxisOrientConditional, xyAxisConditionalEncoding } from './axis-util';
 
 export default function(spec, config, userEncode, dataRef, size, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
-      sign = isSignal(orient) ? ifTopOrLeftAxisSignalRef(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
+      sign = resolveAxisOrientConditional([Left, Top], orient, -1, 1),
       encode, enter, exit, update, tickSize, tickPos, u, v, v2;
 
   encode = {

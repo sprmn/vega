@@ -1,4 +1,4 @@
-import {ifTopOrLeftAxisSignalRef, xyAxisConditionalEncoding} from './axis-util';
+import {resolveAxisOrientConditional, xyAxisConditionalEncoding} from './axis-util';
 import {Bottom, GuideTitleStyle, Left, Top, one, zero} from './constants';
 import guideMark from './guide-mark';
 import {alignExpr, anchorExpr, lookup} from './guide-util';
@@ -12,9 +12,9 @@ import { isSignal } from '../../util';
 export default function(spec, config, userEncode, dataRef) {
   var _ = lookup(spec, config),
       orient = spec.orient,
-      sign = isSignal(orient) ? ifTopOrLeftAxisSignalRef(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
+      sign = resolveAxisOrientConditional([Left, Top], orient, -1, 1),
       horizontal = (orient === Top || orient === Bottom),
-      encode, enter, update, titlePos;
+      encode, enter, update, titlePos, u, v, titleXY, titleName;
 
   encode = {
     enter: enter = {
@@ -48,7 +48,7 @@ export default function(spec, config, userEncode, dataRef) {
       xyAxisConditionalEncoding('x', 
         orient.signal,
         {signal: `(${orient.signal}) === "${Top}" ? "bottom" : "top"`},
-        { value: 'bottom' }
+        {value: 'bottom'}
       );
   } else {
     if (horizontal) {
@@ -78,31 +78,25 @@ export default function(spec, config, userEncode, dataRef) {
   });
 
   if (isSignal(orient)) {
-    if (_('titleX') != null) {
-      delete encode.update['x'][0].signal;
-      encode.update['x'][0] = {
-        ...encode.update['x'][0],
-        ..._('titleX')
-      };
-    } else {
-      if (!has('x', userEncode)) {
-        encode.enter.auto = xyAxisConditionalEncoding('y', orient.signal, { value: true }, null);
-      }
-    }
+    for (u of ['x', 'y']) {
+      v = u === 'x' ? 'y' : 'x';
+      titleName = 'title' + u.toUpperCase();
 
-    if (_('titleY') != null) {
-      delete encode.update['y'][0].signal;
-      encode.update['y'][0] = {
-        ...encode.update['y'][0],
-        ..._('titleY')
-      };
-    } else {
-      if (!has('y', userEncode)) {
-        if (!encode.enter.auto) {
-          encode.enter.auto = [];
+      if (_(titleName) != null) {
+        titleXY = encode.update[u];
+        delete titleXY[0].signal;
+
+        titleXY[0] = extend({}, encode.update['x'][0], _(titleName));
+      } else {
+        if (!has(u, userEncode)) {
+          if (!encode.enter.auto) {
+            encode.enter.auto = [];
+          }
+
+          encode.enter.auto.push(
+            xyAxisConditionalEncoding(v, orient.signal, { value: true }, null)[0]
+          );
         }
-
-        encode.enter.auto.push(xyAxisConditionalEncoding('x', orient.signal, { value: true }, null)[0]);
       }
     }
   } else {   

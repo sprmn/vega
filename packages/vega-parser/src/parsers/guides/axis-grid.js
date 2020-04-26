@@ -6,15 +6,13 @@ import {AxisGridRole} from '../marks/roles';
 import {addEncoders} from '../encode/encode-util';
 import {extend, isObject} from 'vega-util';
 import { isSignal } from '../../util';
-import { ifTopOrLeftAxisSignalRef, xyAxisConditionalEncoding, xyAxisSignalRef } from './axis-util';
+import { resolveAxisOrientConditional, resolveXYAxisOrientConditional, xyAxisConditionalEncoding } from './axis-util';
 
 export default function(spec, config, userEncode, dataRef, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
       vscale = spec.gridScale,
-      sign = isSignal(orient)
-        ? ifTopOrLeftAxisSignalRef(orient.signal, 1, -1)
-        : (orient === Left || orient === Top) ? 1 : -1,
+      sign = resolveAxisOrientConditional([Top, Left], orient, 1, -1),
       offset = offsetValue(spec.offset, sign),
       encode, enter, exit, update,
       tickPos, gridLineStart, gridLineEnd,
@@ -45,9 +43,7 @@ export default function(spec, config, userEncode, dataRef, band) {
   };
 
   isXAxis = orient === Top || orient === Bottom;
-  s = isSignal(orient)
-    ? xyAxisSignalRef('x', orient.signal, { signal: 'height' }, { signal: 'width' }).signal
-    : isXAxis ? 'height' : 'width';
+  s = resolveXYAxisOrientConditional('x', orient, { signal: 'height' }, { signal: 'width'}).signal;
   
   gridLineStart = vscale
     ? {scale: vscale, range: 0, mult: sign, offset: offset}

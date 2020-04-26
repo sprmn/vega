@@ -26,7 +26,6 @@ export default function(spec, scope) {
 
   // single-element data source for axis group
   datum = {
-    orient: spec.orient,
     scale:  spec.scale,
     ticks:  !!_('ticks'),
     labels: !!_('labels'),

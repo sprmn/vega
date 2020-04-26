@@ -153,7 +153,6 @@ const axis = object({
 
 export default {
   refs: {
-    axisOrient,
     labelOverlap,
     tickBand,
     tickCount

@@ -51,18 +51,11 @@
       "type": "object",
       "properties": {
         "orient": {
-          "oneOf": [
-            {
-              "enum": [
-                "top",
-                "bottom",
-                "left",
-                "right"
-              ]
-            },
-            {
-              "$ref": "#/refs/signal"
-            }
+          "enum": [
+            "top",
+            "bottom",
+            "left",
+            "right"
           ]
         },
         "scale": {
@@ -12284,21 +12277,6 @@
     }
   },
   "refs": {
-    "axisOrient": {
-      "oneOf": [
-        {
-          "enum": [
-            "top",
-            "bottom",
-            "left",
-            "right"
-          ]
-        },
-        {
-          "$ref": "#/refs/signal"
-        }
-      ]
-    },
     "labelOverlap": {
       "oneOf": [
         {
