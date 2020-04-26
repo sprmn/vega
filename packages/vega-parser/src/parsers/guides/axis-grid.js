@@ -18,7 +18,7 @@ export default function(spec, config, userEncode, dataRef, band) {
       offset = offsetValue(spec.offset, sign),
       encode, enter, exit, update,
       tickPos, gridLineStart, gridLineEnd,
-      u, v, v2, s, isXAxis, xy;
+      u, v, v2, s, isXAxis;
 
   encode = {
     enter: enter = {opacity: zero},
@@ -58,16 +58,13 @@ export default function(spec, config, userEncode, dataRef, band) {
     : {signal: s, mult: sign, offset: offset};
 
   if (isSignal(orient)) {
-    for (xy of ['x', 'y']) {
-      update[xy] = enter[xy] = xyAxisConditionalEncoding(xy, orient.signal, tickPos, gridLineStart);
+    for (u of ['x', 'y']) {
+      v = u === 'x' ? 'y' : 'x';
+      v2 = v + '2';
       
-      exit[xy] = xyAxisConditionalEncoding(xy, orient.signal, tickPos, null);
-      
-      update[xy + '2'] = enter[xy + '2'] = xyAxisConditionalEncoding(xy === 'x' ? 'y' : 'x',
-        orient.signal,
-        gridLineEnd,
-        null
-      );
+      update[u] = enter[u] = xyAxisConditionalEncoding(u, orient.signal, tickPos, gridLineStart);
+      exit[u] = xyAxisConditionalEncoding(u, orient.signal, tickPos, null);
+      update[v2] = enter[v2] = xyAxisConditionalEncoding(u, orient.signal, gridLineEnd, null);
     }
   } else {
     if (isXAxis) {
@@ -97,32 +94,30 @@ export default function(spec, config, userEncode, dataRef, band) {
 function offsetValue(offset, sign)  {
   var entry;
 
-  if (!isSignal(sign)) {
-    if (sign === 1) {
-      // do nothing!
-    } else if (!isObject(offset)) {
-      offset = isSignal(sign) ? {
-        signal: `(${sign.signal}) === 1 ? 0 : (${sign.signal}) * (${offset || 0})`
-      } : offset = sign * (offset || 0);
-    } else {
-      entry = offset = extend({}, offset);
-      
-      while (entry.mult != null) {
-        if (!isObject(entry.mult)) {
-          if (isSignal(sign)) {
-            // no offset if sign === 1
-            entry.mult = { signal: `(${sign.signal}) === 1 ? 0 : -${entry.mult}` };
-          } else {
-            entry.mult *= sign;
-          }
-          return offset;
+  if (sign === 1) {
+    // do nothing!
+  } else if (!isObject(offset)) {
+    offset = isSignal(sign) ? {
+      signal: `(${sign.signal}) === 1 ? 0 : (${sign.signal}) * (${offset || 0})`
+    } : sign * (offset || 0);
+  } else {
+    entry = offset = extend({}, offset);
+    
+    while (entry.mult != null) {
+      if (!isObject(entry.mult)) {
+        if (isSignal(sign)) {
+          // no offset if sign === 1
+          entry.mult = { signal: `(${sign.signal}) === 1 ? 0 : -${entry.mult}` };
         } else {
-          entry = entry.mult = extend({}, entry.mult);
+          entry.mult *= sign;
         }
+        return offset;
+      } else {
+        entry = entry.mult = extend({}, entry.mult);
       }
-
-      entry.mult = sign;
     }
+
+    entry.mult = sign;
   }
 
   return offset;

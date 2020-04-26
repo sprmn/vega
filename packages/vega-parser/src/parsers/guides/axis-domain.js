@@ -28,12 +28,13 @@ export default function(spec, config, userEncode, dataRef) {
   });
 
   if (isSignal(spec.orient)) {
-    enter.y = xyAxisConditionalEncoding('x', orient.signal, zero, position(spec, 0));
-    enter.x = xyAxisConditionalEncoding('y', orient.signal, zero, position(spec, 0));
-    update.x = xyAxisConditionalEncoding('x', orient.signal, position(spec, 0), null);
-    update.y = xyAxisConditionalEncoding('y', orient.signal, position(spec, 0), null);
-    update.x2 = enter.x2 = xyAxisConditionalEncoding('x', orient.signal, position(spec, 1), null);
-    update.y2 = enter.y2 = xyAxisConditionalEncoding('y', orient.signal, position(spec, 1), null);
+    for (u of ['x', 'y']) {
+      u2 = u + 2;
+      v = u === 'x' ? 'y' : 'x';
+      enter[v] = xyAxisConditionalEncoding(u, orient.signal, zero, position(spec, 0));
+      update[u] = xyAxisConditionalEncoding(u, orient.signal, position(spec, 0), null);
+      update[u2] = enter[u2] = xyAxisConditionalEncoding(u, orient.signal, position(spec, 1), null);
+    }
   } else {
     if (orient === Top || orient === Bottom) {
       u = 'x';

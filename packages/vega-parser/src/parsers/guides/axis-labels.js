@@ -44,27 +44,21 @@ export default function(spec, config, userEncode, dataRef, size, band) {
   if (isSignal(orient)) {
     align = labelAlign ||
       {
-        signal: `(${orient.signal}) === "${Top}" || (${orient.signal}) === "${Bottom}"`
-          + ' ? '
-          + `(${flushOn ? flushExpr(scale, flush, '"left"', '"right"', '"center"').signal : "'center'"})`
-          + ' : '
+        signal: xyAxisBooleanExpr('x', orient.signal) + ' ? '
+          + `(${flushOn ? flushExpr(scale, flush, '"left"', '"right"', '"center"').signal : "'center'"}) : `
           + `(${orient.signal}) === "${Right}" ? "left" : "right"`
       };
 
     baseline = labelBaseline ||
       {
-        signal: `(${orient.signal}) === "${Top}" ? "bottom"`
-          + ' : '
-          + `(${orient.signal}) === "${Bottom}" ? "top"`
-          + ' : '
+        signal: `(${orient.signal}) === "${Top}" ? "bottom" : `
+          + `(${orient.signal}) === "${Bottom}" ? "top" : `
           + `${flushOn ? flushExpr(scale, flush, '"top"', '"bottom"', '"middle"') : "'middle'"}`
       };
 
     offsetExpr = flushExpr(scale, flush, '-(' + flushOffset + ')', flushOffset, 0).signal;
-    offset = `${xyAxisBooleanExpr('x', orient.signal)}`
-      + ' ? ' +
-      + `(${!labelAlign && flushOn && flushOffset ? offsetExpr : null})`
-      + ' : '
+    offset = `${xyAxisBooleanExpr('x', orient.signal)} ? `
+      + `(${!labelAlign && flushOn && flushOffset ? offsetExpr : null}) : `
       + `(${!labelBaseline && flushOn && flushOffset ? offsetExpr : null})`;
     
     enter = {

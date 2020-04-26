@@ -11,7 +11,7 @@ export default function(spec, config, userEncode, dataRef, size, band) {
   var _ = lookup(spec, config),
       orient = spec.orient,
       sign = isSignal(orient) ? ifTopOrLeftAxisSignalRef(orient.signal, -1, 1) : (orient === Left || orient === Top) ? -1 : 1,
-      encode, enter, exit, update, tickSize, tickPos;
+      encode, enter, exit, update, tickSize, tickPos, u, v, v2;
 
   encode = {
     enter: enter = {opacity: zero},
@@ -41,12 +41,14 @@ export default function(spec, config, userEncode, dataRef, size, band) {
   };
 
   if (isSignal(orient)) {
-    update.y = enter.y = xyAxisConditionalEncoding('x', orient.signal, zero, tickPos);
-    update.x = enter.x = xyAxisConditionalEncoding('y', orient.signal, zero, tickPos);
-    update.y2 = enter.y2 = xyAxisConditionalEncoding('x', orient.signal, tickSize, null);
-    update.x2 = enter.x2 = xyAxisConditionalEncoding('y', orient.signal, tickSize, null);
-    exit.x = xyAxisConditionalEncoding('x', orient.signal, tickPos, null);
-    exit.y = xyAxisConditionalEncoding('y', orient.signal, tickPos, null);
+    for (u of ['x', 'y']) {
+      v = u === 'x' ? 'y' : 'x';
+      v2 = v + '2';
+
+      update[v] = enter[v] = xyAxisConditionalEncoding(u, orient.signal, zero, tickPos);
+      update[v2] = enter[v2] = xyAxisConditionalEncoding(u, orient.signal, tickSize, null);
+      exit[u] = xyAxisConditionalEncoding(u, orient.signal, tickPos, null);
+    }
   } else {
     if (orient === Top || orient === Bottom) {
       update.y = enter.y = zero;

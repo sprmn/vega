@@ -53,7 +53,7 @@ export default function(spec, config, userEncode, dataRef) {
   } else {
     if (horizontal) {
       update.x = titlePos;
-      enter.angle = {value: 0};
+      enter.angle = zero;
       enter.baseline = {value: orient === Top ? 'bottom' : 'top'};
     } else {
       update.y = titlePos;
